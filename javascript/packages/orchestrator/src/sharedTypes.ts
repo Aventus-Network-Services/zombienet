@@ -125,6 +125,7 @@ export interface NodeCommonTypes {
   substrate_cli_args_version?: SubstrateCliArgsVersion;
   resources?: Resources;
   keystore_key_types?: string[];
+  mnemonic?: string; // mnemonic to use for account generation
 }
 
 export interface envVars {

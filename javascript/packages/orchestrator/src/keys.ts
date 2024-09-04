@@ -4,6 +4,7 @@ import {
   cryptoWaitReady,
   mnemonicGenerate,
   mnemonicToMiniSecret,
+  mnemonicValidate,
 } from "@polkadot/util-crypto";
 import { makeDir } from "@zombienet/utils";
 import fs from "fs";
@@ -20,13 +21,24 @@ export async function generateKeyFromSeed(seed: string): Promise<any> {
   return sr_keyring.createFromUri(`//${seed}`);
 }
 
-export async function generateKeyForNode(nodeName?: string): Promise<any> {
+export async function generateKeyForNode(nodeName?: string, mnemonic?: string): Promise<any> {
   await cryptoWaitReady();
 
-  const mnemonic = mnemonicGenerate();
-  const seed = nodeName
+  let seed;
+
+  if (mnemonic) {
+    if (!mnemonicValidate(mnemonic)) {
+      throw new Error('Invalid mnemonic specified');
+    }
+
+    seed = u8aToHex(mnemonicToMiniSecret(mnemonic!));
+  } else {
+    seed = nodeName
     ? `//${nameCase(nodeName)}`
-    : u8aToHex(mnemonicToMiniSecret(mnemonic));
+    : u8aToHex(mnemonicToMiniSecret(mnemonicGenerate()));
+  }
+
+  console.log(`\nNode seed: ${seed}. Mnemonic: ${mnemonic}`)
 
   const sr_keyring = new Keyring({ type: "sr25519" });
   const sr_account = sr_keyring.createFromUri(`${seed}`);
@@ -123,7 +135,12 @@ export async function generateKeystoreFiles(
     const filename = Buffer.from(k).toString("hex") + v.replace(/^0x/, "");
     const keystoreFilePath = `${keystoreDir}/${filename}`;
     paths.push(keystoreFilePath);
-    await fs.promises.writeFile(keystoreFilePath, `"${node.accounts.seed}"`);
+    if (k === "ethk") {
+      await fs.promises.writeFile(keystoreFilePath, `"${node.accounts.seed.replace("0x", "")}"`);
+    } else {
+      await fs.promises.writeFile(keystoreFilePath, `"${node.accounts.seed}"`);
+    }
+
   }
 
   return paths;

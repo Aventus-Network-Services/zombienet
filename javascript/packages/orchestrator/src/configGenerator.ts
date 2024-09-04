@@ -2,6 +2,7 @@ import fs from "fs";
 import path, { resolve } from "path";
 
 import {
+  CreateLogTable,
   decorators,
   getRandomPort,
   getSha256,
@@ -637,6 +638,18 @@ async function getNodeFromConfig(
   globalOverrides: Override[],
   group?: string,
 ): Promise<Node> {
+
+
+  new CreateLogTable({
+    colWidths: [30, 50, 70],
+  }).pushToPrint([
+    [
+      decorators.cyan("👤 getNodeFromConfig"),
+      decorators.green(node.name),
+      decorators.green(node.mnemonic),
+    ],
+  ]);
+
   const command = node.command
     ? node.command
     : networkSpec.relaychain.defaultCommand;
@@ -666,7 +679,20 @@ async function getNodeFromConfig(
   const isValidator = node.validator !== false;
 
   const nodeName = getUniqueName(node.name);
-  const accountsForNode = await generateKeyForNode(nodeName);
+  const para: CHAIN = whichChain(networkSpec.relaychain.chain || "", networkSpec.relaychain.force_decorator);
+  const [decoratedKeysGenerator] = decorate(para, [generateKeyForNode]);
+  const accountsForNode = await decoratedKeysGenerator(nodeName, node.mnemonic);
+  //const accountsForNode = await generateKeyForNode(nodeName, node.mnemonic);
+
+  new CreateLogTable({
+    colWidths: [30, 50, 70],
+  }).pushToPrint([
+    [
+      decorators.cyan("👤 Node Accounts"),
+      decorators.green(node.name),
+      decorators.green(JSON.stringify(accountsForNode, null, 2)),
+    ],
+  ]);
 
   const provider = networkSpec.settings.provider;
   const ports = await getPorts(provider, node);
@@ -712,6 +738,7 @@ async function getNodeFromConfig(
     delayNetworkSettings:
       node.delay_network_settings ||
       networkSpec.relaychain.delayNetworkSettings,
+    mnemonic: node.mnemonic,
   };
 
   if (group) nodeSetup.group = group;
